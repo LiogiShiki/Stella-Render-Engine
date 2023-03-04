@@ -1,8 +1,14 @@
-# ToyRenderer
+# Stella Toy Renderer
 
-This is a tiny renderer project, mostly for learning C++/ openGL programing and graphics techniques . Currently I name it Stella.
+This is a tiny renderer project, mostly for learning C++/ OpenGL programing and some graphics techniques . Currently I name it Stella.
 
-Several graphics algorithms are implemented in a rather simple way: Physically based material(Cook-Torrance BRDF), Shadow Mapping(Cascaded and PCF flitered), Screen Space Reflection(with Hi-Z buffer accelerated), Image-based lighting, simple Reflective Shadow Map, Temporal AA(with jittering and velocity buffer). 
+Several graphics algorithms are implemented in a rather simple way: Physically based material (Cook-Torrance BRDF), Deferred Shading, Shadow Mapping (Cascaded and PCF filter), Screen Space Reflection (with Hi-Z buffer accelerated), Image-based lighting, simple Reflective Shadow Map, Temporal AA (with jittering and velocity buffer). 
+
+Also, there are features like perspective camera, normal mapping, simple HDR, Directional light(Point light and shadow not yet implemented).
+
+Features I would like to try in the feature: high-quality bloom, forward+ pipeline, area light, VXGI.
+
+
 
 ## Render Demos
 
