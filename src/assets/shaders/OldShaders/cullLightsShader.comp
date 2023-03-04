@@ -1,0 +1,199 @@
+#version 460 core
+// layout(local_size_x = 256, local_size_y = 1) in;
+layout(local_size_x = 16, local_size_y = 16) in;
+
+#define PLANES_IN_A_TILE  4
+struct TileFrustrum{
+    //Contains the normal as xyz and the D constant as W
+    //Follows the following convention:
+    // enum planes{
+    // TOP = 0, BOTTOM, LEFT,
+    // RIGHT, NEARP, FARP};
+    vec4 plane[4];
+    float nearPlane;
+    float farPlane;
+};
+
+struct PointLight{
+    vec4 position;
+    vec4 color;
+    uint enabled;
+    float intensity;
+    float range;
+};
+
+struct LightGrid{
+    uint offset;
+    uint count;
+};
+
+layout (std430, binding = 3) buffer tile_frustrum{
+    TileFrustrum frustums[ ];
+};
+
+layout (std430, binding = 4) buffer screenToView{
+    mat4 inverseProjection;
+    uint screenWidth;
+    uint screenHeight;
+    uint tileNumX;
+    uint tileNumY;
+};
+
+layout (std430, binding = 5) buffer lightSSBO{
+    PointLight pointLight[];
+};
+
+layout (std430, binding = 6) buffer lightIndexSSBO{
+    uint globalLightIndexList[];
+};
+
+layout (std430, binding = 7) buffer lightGridSSBO{
+    LightGrid lightGrid[];
+};
+
+layout (std430, binding = 8) buffer globalIndexCountSSBO{
+    uint globalIndexCount;
+};
+
+//Shared variables 
+// shared uint visibleLightCount;
+// shared uint visibleLightIndices[1024];
+shared PointLight sharedLights[256];
+
+//Uniform variables
+uniform int activeLightCount; 
+uniform mat4 viewMatrix;
+
+bool lightSphereInsideFrustum(uint light, uint tile);
+bool sphereInsidePlane(float radius, vec3 center, vec4 plane);
+//Taken mostly from rendering in battlefield 3 presentation 
+//https://www.slideshare.net/DICEStudio/directx-11-rendering-in-battlefield-3
+void main(){
+    uint threadCount = gl_WorkGroupSize.x * gl_WorkGroupSize.y;
+    uint lightCount  = pointLight.length();
+    uint numBatches = (lightCount + threadCount -1) / threadCount;
+    uint tileIndex = gl_GlobalInvocationID.x + gl_GlobalInvocationID.y * tileNumX;
+    uint visibleLightCount = 0;
+    uint visibleLightIndices[100];
+
+    //Iterating per batch of lights
+    if(gl_GlobalInvocationID.x < tileNumX && gl_GlobalInvocationID.y < tileNumY ){
+        for( uint batch = 0; batch < numBatches; ++batch){
+            uint lightIndex = batch * threadCount + gl_LocalInvocationIndex;
+
+            //Prevent overflow by clamping to last light which is always null
+            lightIndex = min(lightIndex, lightCount);
+
+            //Populating shared light array
+            sharedLights[gl_LocalInvocationIndex] = pointLight[lightIndex];
+            barrier();
+
+            //Iterating within the current batch of lights
+            for( uint light = 0; light < threadCount; ++light){
+                if( sharedLights[light].enabled  == 1){
+                    if (lightSphereInsideFrustum(light, tileIndex)){
+                        visibleLightIndices[visibleLightCount] = batch * threadCount + light;
+                        visibleLightCount += 1;
+                    }
+                }
+            }
+        }
+
+        //We want all thread groups to have completed the light tests before continuing
+        barrier();
+        
+        uint offset = atomicAdd(globalIndexCount, visibleLightCount);
+
+        for(uint i = 0; i < visibleLightCount; ++i){
+            globalLightIndexList[offset + i] = visibleLightIndices[i];
+        }
+
+        lightGrid[tileIndex].offset = offset;
+        lightGrid[tileIndex].count = visibleLightCount;
+
+    }
+}
+
+bool lightSphereInsideFrustum(uint light, uint tile){
+    bool result = true;
+
+    PointLight currentLight = pointLight[light];
+    vec3 center  = vec3(viewMatrix * currentLight.position);
+    float radius = currentLight.range;
+
+    float zNear = -frustums[tile].nearPlane;
+    float zFar  = -frustums[tile].farPlane;
+
+    //First check depth
+    if(center.z - radius > zNear || center.z + radius < zFar){
+        result = false;
+    }
+
+    for(uint i = 0 ; i < PLANES_IN_A_TILE; ++i){
+        if( sphereInsidePlane(radius, center, frustums[tile].plane[i])){
+            result = false;
+        }
+    }
+
+    return result;
+}
+
+bool sphereInsidePlane(float radius, vec3 center, vec4 plane){
+    vec3  N = plane.xyz;
+    float D = plane.w;
+    return dot(N, center) - D < -radius;
+}
+/* ---------------------------------------------------------------------------------------------
+This used to be the main function tha would have each thread be a light and each work-group a
+a tile. It's nice in that it's a much more easy and simple algorithm to read but it does not 
+fully make use of the awesome shared memory feature that gpu's have
+
+Plus, each work group essentially was performing the same reads to global memory, which made it
+slow. If instead you make each thread be a tile and each work-group just be a bunch of tiles
+we can now put the lights in shared memory and reduce the number of reads.
+ void main(){
+    uint threadCount = gl_WorkGroupSize.x;
+    // uint lightCount  = pointLight.length();
+    uint numBatches = (activeLightCount + threadCount -1) / threadCount;
+    uint tileIndex = gl_WorkGroupID.x + gl_WorkGroupID.y * gl_NumWorkGroups.x;
+
+    if(gl_LocalInvocationIndex == 0){
+        visibleLightCount = 0;
+    }
+
+    barrier();
+
+    for( int batch = 0; batch < numBatches; ++batch){
+       uint lightIndex =  threadCount * batch + gl_LocalInvocationIndex;
+
+        //Prevent overflow by clamping to last light which is always null
+        lightIndex = min(lightIndex, activeLightCount);
+
+        //TODO: Add actual culling, for now it just checks if it is enabled
+        if( pointLight[lightIndex].enabled  == 1){
+            uint offset = atomicAdd(visibleLightCount, 1);
+            visibleLightIndices[offset] = lightIndex;
+        }
+    }
+
+    //We want all thread groups to have completed the light tests before continuing
+    barrier();
+
+    //Only one thread per group will do this
+    if(gl_LocalInvocationIndex == 0){
+        uint offset = atomicAdd(globalIndexCount, visibleLightCount);
+
+        //need to be sure all adds have been done( although not entirely sure of that )
+        //TODO: test with and without
+        // barrier();
+
+        for(uint i = 0; i < visibleLightCount; ++i){
+            globalLightIndexList[offset + i] = visibleLightIndices[i];
+        }
+
+        lightGrid[tileIndex].offset = offset;
+        lightGrid[tileIndex].count = visibleLightCount;
+
+    }
+}
+*/
