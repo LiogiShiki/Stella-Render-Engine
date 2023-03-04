@@ -8,37 +8,37 @@ Several graphics algorithms are implemented in a rather simple way: Physically b
 
 <center> <h4>Physically based material + Image-based Lighting</h4> </center>
 
-![](https://github.com/LiogiShiki/ToyEngine/blob/master/Demos/01.png)
+![](https://github.com/LiogiShiki/Stella/blob/master/Demos/01.png)
 
-![](https://github.com/LiogiShiki/ToyEngine/blob/master/Demos/02.png)
+![](https://github.com/LiogiShiki/Stella/blob/master/Demos/02.png)
 
 
 
 <center> <h4>Cascaded Shadow Mapping</h4> </center>
 
-![](https://github.com/LiogiShiki/ToyEngine/blob/master/Demos/12.png)
+![](https://github.com/LiogiShiki/Stella/blob/master/Demos/12.png)
 
-![](https://github.com/LiogiShiki/ToyEngine/blob/master/Demos/13.png)
+![](https://github.com/LiogiShiki/Stella/blob/master/Demos/13.png)
 
 <center> <h4>Sponza With IBL/Screen Space Refelction</h4> </center>
 
-![](https://github.com/LiogiShiki/ToyEngine/blob/master/Demos/03.png)
+![](https://github.com/LiogiShiki/Stella/blob/master/Demos/03.png)
 
-![](https://github.com/LiogiShiki/ToyEngine/blob/master/Demos/06.png)
+![](https://github.com/LiogiShiki/Stella/blob/master/Demos/06.png)
 
-![](https://github.com/LiogiShiki/ToyEngine/blob/master/Demos/05.png)
+![](https://github.com/LiogiShiki/Stella/blob/master/Demos/05.png)
 
-![](https://github.com/LiogiShiki/ToyEngine/blob/master/Demos/04.png)
+![](https://github.com/LiogiShiki/Stella/blob/master/Demos/04.png)
 
 <center> <h4>Temporal AA</h4> </center>
 
-![](https://github.com/LiogiShiki/ToyEngine/blob/master/Demos/10.png)
+![](https://github.com/LiogiShiki/Stella/blob/master/Demos/10.png)
 
-![](https://github.com/LiogiShiki/ToyEngine/blob/master/Demos/09.png)
+![](https://github.com/LiogiShiki/Stella/blob/master/Demos/09.png)
 
 <center> <h4>RSM</h4> </center>
 
-![](https://github.com/LiogiShiki/ToyEngine/blob/master/Demos/RSM.png)
+![](https://github.com/LiogiShiki/Stella/blob/master/Demos/RSM.png)
 
 
 
